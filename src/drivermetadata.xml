@@ -1,0 +1,36 @@
+<Driver Description="Describe the purpose of your CloudShell shell" MainClass="xena_driver.XenaController2GDriver" Name="XenaControllerShell2GDriver" Version="2.0.0">
+    <Layout>
+
+        <Category Name="Hidden Commands">
+
+            <Command Description="" DisplayName="Cleanup Reservation" EnableCancellation="true" Name="cleanup_reservation" Tags="" />
+
+            <Command Description="" Name="cleanup" Tags="" />
+
+            <Command Description="" DisplayName="Keep Alive" EnableCancellation="true" Name="keep_alive" Tags="" />
+
+        </Category>
+
+        <Command Description="Reserve ports and load configuration files" DisplayName="Load Configuration" Name="load_config">
+            <Parameters>
+                <Parameter Description="Full path to the configuration files folder" DisplayName="Configuration File Location" Mandatory="True" Name="config_file_location" Type="String" />
+            </Parameters>
+        </Command>
+
+        <Command Description="Start traffic on all ports" DisplayName="Start Traffic" Name="start_traffic">
+            <Parameters>
+                <Parameter AllowedValues="True,False" DefaultValue="False" Description="True - return after traffic finish to run, False - return immediately" DisplayName="Block" Mandatory="False" Name="blocking" Type="Lookup" />
+            </Parameters>
+        </Command>
+
+        <Command Description="Stop traffic on all ports" DisplayName="Stop Traffic" Name="stop_traffic" />
+
+        <Command Description="Get real time statistics as sandbox attachment" DisplayName="Get Statistics" Name="get_statistics">
+            <Parameters>
+                <Parameter Description="The requested view name, see shell's documentation for details" DisplayName="View Name" Mandatory="True" Name="view_name" Type="String" />
+                <Parameter AllowedValues="csv,json" DefaultValue="csv" Description="CSV or JSON" DisplayName="Output Type" Mandatory="True" Name="output_type" Type="Lookup" />
+            </Parameters>
+        </Command>
+
+    </Layout>
+</Driver>
