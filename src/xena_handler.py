@@ -1,11 +1,13 @@
+"""
+Xena controller handler.
+"""
 import csv
 import io
 import json
 from os import path
 
-from cloudshell.traffic.helpers import get_family_attribute, get_location, get_resources_from_reservation, get_cs_session
+from cloudshell.traffic.helpers import get_cs_session, get_family_attribute, get_location, get_resources_from_reservation
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, TgControllerHandler, attach_stats_csv, is_blocking
-
 from trafficgenerator.tgn_utils import ApiType, TgnError
 from xenavalkyrie.xena_app import init_xena
 from xenavalkyrie.xena_port import XenaPort
