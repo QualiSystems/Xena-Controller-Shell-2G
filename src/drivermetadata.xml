@@ -1,4 +1,4 @@
-<Driver Description="Describe the purpose of your CloudShell shell" MainClass="xena_driver.XenaController2GDriver" Name="XenaControllerShell2GDriver" Version="2.0.0">
+<Driver Description="Xena Controller 2G Shell" MainClass="xena_driver.XenaController2GDriver" Name="XenaControllerShell2GDriver" Version="3.0.0" PythonVersion="3">
     <Layout>
 
         <Category Name="Hidden Commands">

@@ -1,6 +1,8 @@
-cloudshell-orch-core>=2.0.0.0,<2.2.0.0
-cloudshell-shell-core>=4,<5
-cloudshell-automation-api>=9.1,<9.2
-cloudshell-traffic==3.0.3
+--pre
 
-xenavalkyrie==1.4.1
+cloudshell-logging==1.0.3
+cloudshell-orch-core>=3.3.0.0,<3.4.0.0
+cloudshell-shell-core>=5.0.3,<6.0.0
+cloudshell-traffic>=3.2,<3.3
+
+xenavalkyrie>=3.0.0,<3.1.0
