@@ -101,3 +101,4 @@ venv*
 .mypy_cache/
 
 .idea
+.pip-download-cache
