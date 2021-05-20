@@ -6,10 +6,9 @@ from os import path
 
 import pytest
 from _pytest.fixtures import SubRequest
-
-from cloudshell.api.cloudshell_api import AttributeNameValue, InputNameValue, CloudShellAPISession
+from cloudshell.api.cloudshell_api import AttributeNameValue, CloudShellAPISession, InputNameValue
 from cloudshell.shell.core.driver_context import ResourceCommandContext
-from cloudshell.traffic.helpers import get_reservation_id, get_resources_from_reservation, set_family_attribute, get_location
+from cloudshell.traffic.helpers import get_location, get_reservation_id, get_resources_from_reservation, set_family_attribute
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, XENA_CONTROLLER_MODEL
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
@@ -20,8 +19,8 @@ ALIAS = "Xena Controller"
 ports = ["Xena-117/Module0/Port0", "Xena-117/Module0/Port1"]
 
 
-@pytest.fixture(params=[("176.22.65.117", "22611", "xena", "h8XUgX3gyjY0vKMg0wQxKg==")])
-def chassis(request: SubRequest) -> list:
+@pytest.fixture(params=[("176.22.65.117", "22611")])
+def controller(request: SubRequest) -> list:
     return request.param
 
 
@@ -39,13 +38,12 @@ def test_helpers(session: CloudShellAPISession) -> TestHelpers:
 
 
 @pytest.fixture()
-def driver(test_helpers: TestHelpers, chassis: list) -> XenaController2GDriver:
-    controller_address, controller_port, _, encrypted_password = chassis
+def driver(test_helpers: TestHelpers, controller: list) -> XenaController2GDriver:
+    controller_address, controller_port = controller
     attributes = {
         f"{XENA_CONTROLLER_MODEL}.Address": controller_address,
         f"{XENA_CONTROLLER_MODEL}.Controller TCP Port": controller_port,
         f"{XENA_CONTROLLER_MODEL}.User": "xena-controller-shell",
-        f"{XENA_CONTROLLER_MODEL}.Password": encrypted_password,
     }
     init_context = test_helpers.service_init_command_context(XENA_CONTROLLER_MODEL, attributes)
     driver = XenaController2GDriver()
@@ -55,13 +53,12 @@ def driver(test_helpers: TestHelpers, chassis: list) -> XenaController2GDriver:
 
 
 @pytest.fixture()
-def context(session: CloudShellAPISession, test_helpers: TestHelpers, chassis: list) -> ResourceCommandContext:
-    controller_address, controller_port, password, _ = chassis
+def context(session: CloudShellAPISession, test_helpers: TestHelpers, controller: list) -> ResourceCommandContext:
+    controller_address, controller_port = controller
     attributes = [
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Address", controller_address),
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Controller TCP Port", controller_port),
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.User", "xena-controller-shell"),
-        AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Password", password),
     ]
     session.AddServiceToReservation(test_helpers.reservation_id, XENA_CONTROLLER_MODEL, ALIAS, attributes)
     context = test_helpers.resource_command_context(service_name=ALIAS)
@@ -91,10 +88,6 @@ class TestXenaController2GDriverDriver:
         tpld_stats = driver.get_statistics(context, "TPLD", "JSON")
         tpld_name = get_location(reservation_ports[0])[-3:] + "/0"
         assert int(tpld_stats[tpld_name]["pr_tpldtraffic_pac"]) == 8000
-
-        print(driver.get_statistics(context, "Port", "CSV"))
-        print(driver.get_statistics(context, "Stream", "CSV"))
-        print(driver.get_statistics(context, "TPLD", "CSV"))
 
         driver.start_traffic(context, "False")
         stats = driver.get_statistics(context, "Port", "JSON")
