@@ -13,7 +13,10 @@ class XenaController2GDriver(TgControllerDriver):
         self.handler = XenaHandler()
 
     def load_config(self, context, config_file_location):
-        """Reserve ports and load Xena configuration files from the given directory."""
+        """Reserve ports and load Xena configuration files from the given directory
+
+        :param config_file_location: Full path to the configuration files folder.
+        """
         return super().load_config(context, config_file_location)
 
     def start_traffic(self, context, blocking):
@@ -27,10 +30,18 @@ class XenaController2GDriver(TgControllerDriver):
     def get_statistics(self, context, view_name, output_type):
         """Get view statistics.
 
-        :param view_name: port, traffic item, flow group etc.
+        :param view_name: Statistics view - port, stream or tpld.
         :param output_type: CSV or JSON.
         """
         return super().get_statistics(context, view_name, output_type)
+
+    def run_rfc(self, context, test, config_file_location):
+        """Run RFC test.
+
+        :param test: RFC test number.
+        :param config_file_location: Full path to RFC test configuration file.
+        """
+        return self.handler.run_rfc(context, test, config_file_location)
 
     #
     # Parent commands are not visible so we re define them in child.

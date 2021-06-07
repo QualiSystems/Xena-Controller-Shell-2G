@@ -4,10 +4,22 @@ Xena controller handler.
 import csv
 import io
 import json
-from os import path
+import re
+import subprocess
+import tempfile
+from pathlib import Path
 
-from cloudshell.traffic.helpers import get_cs_session, get_family_attribute, get_location, get_resources_from_reservation
+from cloudshell.shell.core.driver_context import ResourceCommandContext
+from cloudshell.traffic.helpers import (
+    get_cs_session,
+    get_family_attribute,
+    get_location,
+    get_reservation_id,
+    get_resources_from_reservation,
+)
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, TgControllerHandler, attach_stats_csv, is_blocking
+from cloudshell.traffic.quali_rest_api_helper import create_quali_api_instance
+
 from trafficgenerator.tgn_utils import ApiType, TgnError
 from xenavalkyrie.xena_app import init_xena
 from xenavalkyrie.xena_port import XenaPort
@@ -47,7 +59,7 @@ class XenaHandler(TgControllerHandler):
             chassis = self.xena.session.add_chassis(ip, int(tcp_port), password)
             xena_port = XenaPort(chassis, f"{module}/{port}")
             xena_port.reserve(force=True)
-            xena_port.load_config(path.join(xena_configs_folder, config.replace(".xpc", "")) + ".xpc")
+            xena_port.load_config(Path(xena_configs_folder).parent.joinpath(config.replace(".xpc", "") + ".xpc"))
 
         self.logger.info("Port Reservation Completed")
 
@@ -78,6 +90,38 @@ class XenaHandler(TgControllerHandler):
             return output.getvalue().strip()
         else:
             raise TgnError(f"Output type should be CSV/JSON - got '{output_type}'")
+
+    def run_rfc(self, context: ResourceCommandContext, test: str, config_file_location: str) -> None:
+        with open(config_file_location, "r") as file:
+            config = json.loads(file.read())
+        output_path = tempfile.TemporaryDirectory()
+        self.logger.debug(f"Temp output path - {output_path}")
+        for reserved_port in get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort"):
+            address = get_location(reserved_port)
+            logical_ip = get_family_attribute(context, reserved_port.Name, "Logical Name").strip()
+            self.logger.debug(f"RFC logical IP {logical_ip} will be loaded on Physical location {address}")
+            chassis, module, port = address.split("/")
+            port_handler = [p for p in config["PortHandler"]["EntityList"] if p["IpV4Address"] == logical_ip][0]
+            config["ChassisManager"]["ChassisList"][0]["HostName"] = chassis
+            port_handler["PortRef"]["ModuleIndex"] = module
+            port_handler["PortRef"]["PortIndex"] = port
+        temp_config_file_location = Path(output_path.name).joinpath(Path(config_file_location).name)
+        self.logger.debug(f"Temp config file - {temp_config_file_location}")
+        with open(temp_config_file_location, "w+") as file:
+            json.dump(config, file, indent=2)
+        rfc_test_path = Path(self.service.client_install_path).joinpath(f"Valkyrie{test}.exe")
+        cmd = [rfc_test_path.as_posix(), "-e", "-c", temp_config_file_location.as_posix(), "-r", output_path.name]
+        self.logger.info(f"Running RFC command - {cmd}")
+        rc = subprocess.run(cmd, capture_output=True)
+        self.logger.debug(f"RFC command stdout- {rc.stdout}")
+        if rc.returncode > 0:
+            raise TgnError(f"Failed to run RFC test - {rc.stdout}")
+        output_file = Path(re.findall(b".*PDF.*\[(.*)\].*", rc.stdout)[0].decode("utf-8"))
+        quali_api_helper = create_quali_api_instance(context, self.logger)
+        quali_api_helper.login()
+        quali_api_helper.attach_new_file(
+            get_reservation_id(context), file_data=open(output_file.as_posix(), "br"), file_name=output_file.name
+        )
 
 
 view_name_2_object = {"port": XenaPortsStats, "stream": XenaStreamsStats, "tpld": XenaTpldsStats}

@@ -2,19 +2,22 @@
 Tests for XenaController2GDriver.
 """
 import json
-from os import path
+import logging
+from pathlib import Path
 
 import pytest
 from _pytest.fixtures import SubRequest
 from cloudshell.api.cloudshell_api import AttributeNameValue, CloudShellAPISession, InputNameValue
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.traffic.helpers import get_location, get_reservation_id, get_resources_from_reservation, set_family_attribute
+from cloudshell.traffic.quali_rest_api_helper import create_quali_api_instance
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, XENA_CONTROLLER_MODEL
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
 from src.xena_driver import XenaController2GDriver
 
 ALIAS = "Xena Controller"
+CLIENT_INSTALL_PATH = "C:/Program Files (x86)/Xena Networks/L2-3 Demo/L23Tools Demo"
 
 ports = ["Xena-117/Module0/Port0", "Xena-117/Module0/Port1"]
 
@@ -43,6 +46,7 @@ def driver(test_helpers: TestHelpers, controller: list) -> XenaController2GDrive
     attributes = {
         f"{XENA_CONTROLLER_MODEL}.Address": controller_address,
         f"{XENA_CONTROLLER_MODEL}.Controller TCP Port": controller_port,
+        f"{XENA_CONTROLLER_MODEL}.Client Install Path": CLIENT_INSTALL_PATH,
         f"{XENA_CONTROLLER_MODEL}.User": "xena-controller-shell",
     }
     init_context = test_helpers.service_init_command_context(XENA_CONTROLLER_MODEL, attributes)
@@ -53,19 +57,26 @@ def driver(test_helpers: TestHelpers, controller: list) -> XenaController2GDrive
 
 
 @pytest.fixture()
-def context(session: CloudShellAPISession, test_helpers: TestHelpers, controller: list) -> ResourceCommandContext:
+def context(
+    request: SubRequest, session: CloudShellAPISession, test_helpers: TestHelpers, controller: list
+) -> ResourceCommandContext:
     controller_address, controller_port = controller
     attributes = [
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Address", controller_address),
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Controller TCP Port", controller_port),
+        AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.Client Install Path", CLIENT_INSTALL_PATH),
         AttributeNameValue(f"{XENA_CONTROLLER_MODEL}.User", "xena-controller-shell"),
     ]
     session.AddServiceToReservation(test_helpers.reservation_id, XENA_CONTROLLER_MODEL, ALIAS, attributes)
     context = test_helpers.resource_command_context(service_name=ALIAS)
     session.AddResourcesToReservation(test_helpers.reservation_id, ports)
     reservation_ports = get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort")
-    set_family_attribute(context, reservation_ports[0].Name, "Logical Name", "test_config.xpc")
-    set_family_attribute(context, reservation_ports[1].Name, "Logical Name", "test_config.xpc")
+    if "rfc" not in request.node.name:
+        set_family_attribute(context, reservation_ports[1].Name, "Logical Name", "test_config.xpc")
+        set_family_attribute(context, reservation_ports[0].Name, "Logical Name", "test_config.xpc")
+    else:
+        set_family_attribute(context, reservation_ports[1].Name, "Logical Name", "1.1.1.1")
+        set_family_attribute(context, reservation_ports[0].Name, "Logical Name", "2.2.2.2")
     yield context
 
 
@@ -73,10 +84,10 @@ class TestXenaController2GDriverDriver:
     """Test direct driver calls."""
 
     def test_load_config(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
-        driver.load_config(context, path.dirname(__file__))
+        driver.load_config(context, Path(__file__).parent)
 
-    def test_run_traffic(self, driver, context):
-        driver.load_config(context, path.dirname(__file__))
+    def test_run_traffic(self, driver: XenaController2GDriver, context: ResourceCommandContext):
+        driver.load_config(context, Path(__file__).parent)
         reservation_ports = get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort")
         port_name = get_location(reservation_ports[0])
 
@@ -94,16 +105,22 @@ class TestXenaController2GDriverDriver:
         assert int(stats[get_location(reservation_ports[0])]["pt_total_packets"]) < 16000
         driver.stop_traffic(context)
 
+    def test_run_rfc(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
+        driver.run_rfc(context, "2544", Path(__file__).parent.joinpath("test_config.v2544").as_posix())
+        quali_api_helper = create_quali_api_instance(context, logging.getLogger())
+        quali_api_helper.login()
+        assert quali_api_helper.get_attached_files(get_reservation_id(context))
+
 
 class TestIxNetworkControllerShell:
     """Test indirect Shell calls."""
 
     def test_load_config(self, session: CloudShellAPISession, context: ResourceCommandContext) -> None:
-        cmd_inputs = [InputNameValue("config_file_location", path.dirname(__file__))]
+        cmd_inputs = [InputNameValue("config_file_location", Path(__file__).parent.as_posix())]
         session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "load_config", cmd_inputs)
 
-    def test_run_traffic(self, session: CloudShellAPISession, context: ResourceCommandContext):
-        cmd_inputs = [InputNameValue("config_file_location", path.dirname(__file__))]
+    def test_run_traffic(self, session: CloudShellAPISession, context: ResourceCommandContext) -> None:
+        cmd_inputs = [InputNameValue("config_file_location", Path(__file__).parent.as_posix())]
         session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "load_config", cmd_inputs)
         reservation_ports = get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort")
         port_name = get_location(reservation_ports[0])
@@ -128,3 +145,13 @@ class TestIxNetworkControllerShell:
         port_stats = session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "get_statistics", cmd_inputs)
         assert int(json.loads(port_stats.Output)[port_name]["pt_total_packets"]) < 16000
         session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "stop_traffic")
+
+    def test_run_rfc(self, session: CloudShellAPISession, context: ResourceCommandContext) -> None:
+        cmd_inputs = [
+            InputNameValue("test", "2544"),
+            InputNameValue("config_file_location", Path(__file__).parent.joinpath("test_config.v2544").as_posix()),
+        ]
+        session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "run_rfc", cmd_inputs)
+        quali_api_helper = create_quali_api_instance(context, logging.getLogger())
+        quali_api_helper.login()
+        assert quali_api_helper.get_attached_files(get_reservation_id(context))
