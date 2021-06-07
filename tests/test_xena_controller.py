@@ -84,10 +84,10 @@ class TestXenaController2GDriverDriver:
     """Test direct driver calls."""
 
     def test_load_config(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
-        driver.load_config(context, Path(__file__).parent)
+        driver.load_config(context, Path(__file__).parent.as_posix())
 
     def test_run_traffic(self, driver: XenaController2GDriver, context: ResourceCommandContext):
-        driver.load_config(context, Path(__file__).parent)
+        driver.load_config(context, Path(__file__).parent.as_posix())
         reservation_ports = get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort")
         port_name = get_location(reservation_ports[0])
 

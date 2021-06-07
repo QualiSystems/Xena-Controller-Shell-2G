@@ -17,9 +17,8 @@ from cloudshell.traffic.helpers import (
     get_reservation_id,
     get_resources_from_reservation,
 )
-from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, TgControllerHandler, attach_stats_csv, is_blocking
 from cloudshell.traffic.quali_rest_api_helper import create_quali_api_instance
-
+from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, TgControllerHandler, attach_stats_csv, is_blocking
 from trafficgenerator.tgn_utils import ApiType, TgnError
 from xenavalkyrie.xena_app import init_xena
 from xenavalkyrie.xena_port import XenaPort
@@ -59,7 +58,7 @@ class XenaHandler(TgControllerHandler):
             chassis = self.xena.session.add_chassis(ip, int(tcp_port), password)
             xena_port = XenaPort(chassis, f"{module}/{port}")
             xena_port.reserve(force=True)
-            xena_port.load_config(Path(xena_configs_folder).parent.joinpath(config.replace(".xpc", "") + ".xpc"))
+            xena_port.load_config(Path(xena_configs_folder).joinpath(config.replace(".xpc", "") + ".xpc"))
 
         self.logger.info("Port Reservation Completed")
 
@@ -116,7 +115,7 @@ class XenaHandler(TgControllerHandler):
         self.logger.debug(f"RFC command stdout- {rc.stdout}")
         if rc.returncode > 0:
             raise TgnError(f"Failed to run RFC test - {rc.stdout}")
-        output_file = Path(re.findall(b".*PDF.*\[(.*)\].*", rc.stdout)[0].decode("utf-8"))
+        output_file = Path(re.findall(b".*PDF.*\[(.*)\].*", rc.stdout)[0].decode("utf-8"))  # noqa: W605
         quali_api_helper = create_quali_api_instance(context, self.logger)
         quali_api_helper.login()
         quali_api_helper.attach_new_file(
