@@ -1,6 +1,7 @@
 """
 Tests for XenaController2GDriver.
 """
+# pylint: disable=redefined-outer-name
 import json
 import logging
 from pathlib import Path
@@ -10,7 +11,7 @@ from _pytest.fixtures import SubRequest
 from cloudshell.api.cloudshell_api import AttributeNameValue, CloudShellAPISession, InputNameValue
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.traffic.helpers import get_location, get_reservation_id, get_resources_from_reservation, set_family_attribute
-from cloudshell.traffic.quali_rest_api_helper import create_quali_api_instance
+from cloudshell.traffic.rest_api_helpers import SandboxAttachments
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, XENA_CONTROLLER_MODEL
 from shellfoundry_traffic.test_helpers import TestHelpers, create_session_from_config
 
@@ -19,21 +20,24 @@ from src.xena_driver import XenaController2GDriver
 ALIAS = "Xena Controller"
 CLIENT_INSTALL_PATH = "C:/Program Files (x86)/Xena Networks/L2-3 Demo/L23Tools Demo"
 
-ports = ["Xena-117/Module0/Port0", "Xena-117/Module0/Port1"]
+ports = ["xena-demo/Module5/Port4", "xena-demo/Module5/Port5"]
 
 
-@pytest.fixture(params=[("176.22.65.117", "22611")])
+@pytest.fixture(params=[("demo.xenanetworks.com", "22611")])
 def controller(request: SubRequest) -> list:
+    """Yields controller(s) parameters."""
     return request.param
 
 
 @pytest.fixture(scope="session")
 def session() -> CloudShellAPISession:
+    """Yields CS session."""
     yield create_session_from_config()
 
 
 @pytest.fixture()
 def test_helpers(session: CloudShellAPISession) -> TestHelpers:
+    """Yields TestHelpers object."""
     test_helpers = TestHelpers(session)
     test_helpers.create_reservation()
     yield test_helpers
@@ -84,9 +88,9 @@ class TestXenaController2GDriverDriver:
     """Test direct driver calls."""
 
     def test_load_config(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
-        driver.load_config(context, Path(__file__).parent)
+        driver.load_config(context, Path(__file__).parent.as_posix())
 
-    def test_run_traffic(self, driver: XenaController2GDriver, context: ResourceCommandContext):
+    def test_run_traffic(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
         driver.load_config(context, Path(__file__).parent)
         reservation_ports = get_resources_from_reservation(context, f"{XENA_CHASSIS_MODEL}.GenericTrafficGeneratorPort")
         port_name = get_location(reservation_ports[0])
@@ -107,7 +111,9 @@ class TestXenaController2GDriverDriver:
 
     def test_run_rfc(self, driver: XenaController2GDriver, context: ResourceCommandContext) -> None:
         driver.run_rfc(context, "2544", Path(__file__).parent.joinpath("test_config.v2544").as_posix())
-        quali_api_helper = create_quali_api_instance(context, logging.getLogger())
+        quali_api_helper = SandboxAttachments(
+            context.connectivity.server_address, context.connectivity.admin_auth_token, logging.getLogger()
+        )
         quali_api_helper.login()
         assert quali_api_helper.get_attached_files(get_reservation_id(context))
 
@@ -152,6 +158,8 @@ class TestIxNetworkControllerShell:
             InputNameValue("config_file_location", Path(__file__).parent.joinpath("test_config.v2544").as_posix()),
         ]
         session.ExecuteCommand(get_reservation_id(context), ALIAS, "Service", "run_rfc", cmd_inputs)
-        quali_api_helper = create_quali_api_instance(context, logging.getLogger())
+        quali_api_helper = SandboxAttachments(
+            context.connectivity.server_address, context.connectivity.admin_auth_token, logging.getLogger()
+        )
         quali_api_helper.login()
         assert quali_api_helper.get_attached_files(get_reservation_id(context))

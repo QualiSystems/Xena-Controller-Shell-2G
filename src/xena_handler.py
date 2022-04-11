@@ -17,9 +17,8 @@ from cloudshell.traffic.helpers import (
     get_reservation_id,
     get_resources_from_reservation,
 )
+from cloudshell.traffic.rest_api_helpers import SandboxAttachments
 from cloudshell.traffic.tg import XENA_CHASSIS_MODEL, TgControllerHandler, attach_stats_csv, is_blocking
-from cloudshell.traffic.quali_rest_api_helper import create_quali_api_instance
-
 from trafficgenerator.tgn_utils import ApiType, TgnError
 from xenavalkyrie.xena_app import init_xena
 from xenavalkyrie.xena_port import XenaPort
@@ -31,15 +30,16 @@ from xena_data_model import Xena_Controller_Shell_2G
 class XenaHandler(TgControllerHandler):
     """Business logic for all controller shell commands."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.xena = None
 
-    def initialize(self, context, logger):
+    def initialize(self, context, logger) -> None:
         service = Xena_Controller_Shell_2G.create_from_context(context)
         super().initialize(context, logger, service)
         self.xena = init_xena(ApiType.socket, self.logger, self.service.user)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
+        """Release ports and disconnect."""
         self.xena.session.release_ports()
         self.xena.session.disconnect()
 
@@ -59,7 +59,7 @@ class XenaHandler(TgControllerHandler):
             chassis = self.xena.session.add_chassis(ip, int(tcp_port), password)
             xena_port = XenaPort(chassis, f"{module}/{port}")
             xena_port.reserve(force=True)
-            xena_port.load_config(Path(xena_configs_folder).parent.joinpath(config.replace(".xpc", "") + ".xpc"))
+            xena_port.load_config(Path(xena_configs_folder).joinpath(config.replace(".xpc", "") + ".xpc"))
 
         self.logger.info("Port Reservation Completed")
 
@@ -67,7 +67,8 @@ class XenaHandler(TgControllerHandler):
         self.xena.session.clear_stats()
         self.xena.session.start_traffic(is_blocking(blocking))
 
-    def stop_traffic(self):
+    def stop_traffic(self) -> None:
+        """Stop traffic."""
         self.xena.session.stop_traffic()
 
     def get_statistics(self, context, view_name, output_type):
@@ -117,7 +118,9 @@ class XenaHandler(TgControllerHandler):
         if rc.returncode > 0:
             raise TgnError(f"Failed to run RFC test - {rc.stdout}")
         output_file = Path(re.findall(b".*PDF.*\[(.*)\].*", rc.stdout)[0].decode("utf-8"))
-        quali_api_helper = create_quali_api_instance(context, self.logger)
+        quali_api_helper = SandboxAttachments(
+            context.connectivity.server_address, context.connectivity.admin_auth_token, self.logger
+        )
         quali_api_helper.login()
         quali_api_helper.attach_new_file(
             get_reservation_id(context), file_data=open(output_file.as_posix(), "br"), file_name=output_file.name
