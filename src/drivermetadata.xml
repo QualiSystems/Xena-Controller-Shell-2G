@@ -27,8 +27,8 @@
 
         <Command DisplayName="Get Statistics" Description="Get real time statistics as sandbox attachment" Name="get_statistics">
             <Parameters>
-                <Parameter DisplayName="View Name" AllowedValues="Port,Stream,TPLD" Description="The requested view name, see shell's documentation for details" DefaultValue="False" Mandatory="True" Name="view_name" Type="String" />
-                <Parameter DisplayName="Output Type" AllowedValues="csv,json" Description="CSV or JSON" DefaultValue="csv" Mandatory="True" Name="output_type" Type="Lookup" />
+                <Parameter DisplayName="View Name" AllowedValues="Port,Stream,TPLD" Description="The requested view name, see shell's documentation for details" DefaultValue="Port" Mandatory="False" Name="view_name" Type="Lookup" />
+                <Parameter DisplayName="Output Type" AllowedValues="csv,json" Description="CSV or JSON" DefaultValue="csv" Mandatory="False" Name="output_type" Type="Lookup" />
             </Parameters>
         </Command>
 
