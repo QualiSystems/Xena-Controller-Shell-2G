@@ -3,9 +3,9 @@
 
 # **Xena Controller 2G Shell**  
 
-Release date: June 2020
+Release date: August 2022
 
-Shell version: 3.1.0
+Shell version: 3.2.0
 
 Document version: 1.0
 
@@ -33,7 +33,7 @@ For more information on the **Xena Controller**, see the official **Xena** produ
 
 The **Xena Controller** provides automation commands to run on the chassis, such as Load Configuration, Start/Stop Traffic, Get Statistics. For more information on the Xena Chassis shell, see the following:
 
-* [Xena Chassis 2G Shell](https://community.quali.com/repos/3440/xena-chassis-2-gen-shell)
+* [Xena Chassis 2G Shell](https://github.com/QualiSystems/Xena-Chassis-Shell-2G)
 
 ### Standard version
 The **Xena Controller 2G** shell is based on the Traffic Generator Controller Standard version 2.0.0.

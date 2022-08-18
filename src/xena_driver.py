@@ -1,7 +1,11 @@
 """
-Xena controller driver.
+Xena controller shell driver API. The business logic is implemented in xena_handler.py.
 """
-from cloudshell.traffic.tg import TgControllerDriver
+# pylint: disable=unused-argument
+from typing import Union
+
+from cloudshell.shell.core.driver_context import CancellationContext, InitCommandContext, ResourceCommandContext
+from cloudshell.traffic.tg import TgControllerDriver, enqueue_keep_alive
 
 from xena_handler import XenaHandler
 
@@ -9,49 +13,56 @@ from xena_handler import XenaHandler
 class XenaController2GDriver(TgControllerDriver):
     """Xena controller shell API, no business logic."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize object variables, actual initialization is performed in initialize method."""
+        super().__init__()
         self.handler = XenaHandler()
 
-    def load_config(self, context, config_file_location):
-        """Reserve ports and load Xena configuration files from the given directory
+    def initialize(self, context: InitCommandContext) -> None:
+        """Initialize Xena controller shell (from API)."""
+        super().initialize(context)
+        self.handler.initialize(context, self.logger)
 
-        :param config_file_location: Full path to the configuration files folder.
+    def cleanup(self) -> None:
+        """Cleanup TestCenter controller shell (from API)."""
+        self.handler.cleanup()
+        super().cleanup()
+
+    def load_config(self, context: ResourceCommandContext, config_file_location: str) -> None:
+        """Load Xena configuration file, map and reserve ports."""
+        enqueue_keep_alive(context)
+        self.handler.load_config(context, config_file_location)
+
+    def start_traffic(self, context: ResourceCommandContext, blocking: str) -> None:
+        """Start traffic on all ports.
+
+        :param blocking: True - return after traffic finish to run, False - return immediately.
         """
-        return super().load_config(context, config_file_location)
+        self.handler.start_traffic(blocking)
 
-    def start_traffic(self, context, blocking):
-        """Start traffic on all ports."""
-        return super().start_traffic(context, blocking)
-
-    def stop_traffic(self, context):
+    def stop_traffic(self, context: ResourceCommandContext) -> None:
         """Stop traffic on all ports."""
-        return super().stop_traffic(context)
+        self.handler.stop_traffic()
 
-    def get_statistics(self, context, view_name, output_type):
+    def get_statistics(self, context: ResourceCommandContext, view_name: str, output_type: str) -> Union[dict, str]:
         """Get view statistics.
 
         :param view_name: Statistics view - port, stream or tpld.
         :param output_type: CSV or JSON.
         """
-        return super().get_statistics(context, view_name, output_type)
+        return self.handler.get_statistics(context, view_name, output_type)
 
-    def run_rfc(self, context, test, config_file_location):
+    def run_rfc(self, context: ResourceCommandContext, test: str, config_file_location: str) -> None:
         """Run RFC test.
 
         :param test: RFC test number.
         :param config_file_location: Full path to RFC test configuration file.
         """
-        return self.handler.run_rfc(context, test, config_file_location)
+        self.handler.run_rfc(context, test, config_file_location)
 
-    #
-    # Parent commands are not visible so we re define them in child.
-    #
+    def keep_alive(self, context: ResourceCommandContext, cancellation_context: CancellationContext) -> None:
+        """Keep Xena controller shell sessions alive (from TG controller API).
 
-    def initialize(self, context):
-        super().initialize(context)
-
-    def cleanup(self):
-        super().cleanup()
-
-    def keep_alive(self, context, cancellation_context):
+        Parent commands are not visible so we re re-define this method in child.
+        """
         super().keep_alive(context, cancellation_context)

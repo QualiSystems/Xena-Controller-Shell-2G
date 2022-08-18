@@ -38,16 +38,4 @@
  if the <sources> element is not specified, all the files under the project are added to the script's zip file.
  if only one file is specified, the file will not be compressed into a zip file.
  -->
-    <!--
-    <scripts>
-
-        <script>
-
-            <sources>
-                <source>script1.py</source>
-            </sources>
-            <targetName>scriptToUpdate</targetName>
-        </script>
-    </scripts>
-        -->
 </properties>

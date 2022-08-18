@@ -1,11 +1,16 @@
 description: TOSCA based Xena Controller shell
+
+tosca_definitions_version: tosca_simple_yaml_1_0
+
 imports:
 - cloudshell_standard: cloudshell_traffic_generator_controller_standard_2_0_0.yaml
+
 metadata:
   template_author: Quali
   template_icon: shell-icon.png
   template_name: Xena Controller Shell 2G
-  template_version: 3.1.2
+  template_version: 3.2.0
+
 node_types:
   vendor.resource.Xena Controller Shell 2G:
     derived_from: cloudshell.nodes.TrafficGeneratorController
@@ -19,4 +24,3 @@ node_types:
     capabilities:
       concurrent_execution:
         type: cloudshell.capabilities.SupportConcurrentCommands
-tosca_definitions_version: tosca_simple_yaml_1_0
